@@ -1,0 +1,68 @@
+# Day 1
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  @digits "0|1|2|3|4|5|6|7|8|9|one|two|three|four|five|six|seven|eight|nine"
+  @lookup %{
+    "one" => 1,
+    "two" => 2,
+    "three" => 3,
+    "four" => 4,
+    "five" => 5,
+    "six" => 6,
+    "seven" => 7,
+    "eight" => 8,
+    "nine" => 9
+  }
+
+  def part1(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      cs = String.to_charlist(line)
+      first = Enum.find(cs, &(&1 in ?0..?9)) - ?0
+      last = (cs |> Enum.reverse() |> Enum.find(&(&1 in ?0..?9))) - ?0
+      first * 10 + last
+    end)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      matches = Regex.scan(Regex.compile!(@digits), line)
+      first = matches |> Enum.at(0) |> hd() |> to_int()
+
+      matches =
+        @digits |> String.reverse() |> Regex.compile!() |> Regex.scan(String.reverse(line))
+
+      last = matches |> Enum.at(0) |> hd() |> String.reverse() |> to_int()
+      first * 10 + last
+    end)
+    |> Enum.sum()
+  end
+
+  defp to_int(str) do
+    if String.length(str) == 1 do
+      String.to_integer(str)
+    else
+      @lookup[str]
+    end
+  end
+end
+
+Solution.part2(Kino.Input.read(input))
+```
