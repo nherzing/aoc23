@@ -1,0 +1,80 @@
+# Day 2
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(&parse_line/1)
+    |> Enum.filter(&valid?/1)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(&parse_line/1)
+    |> Enum.map(&mins/1)
+    |> Enum.map(&(&1 |> Map.values() |> Enum.product()))
+    |> Enum.sum()
+  end
+
+  defp mins({_, rounds}), do: mins(rounds, %{"red" => 0, "green" => 0, "blue" => 0})
+
+  defp mins([], mins), do: mins
+
+  defp mins([pulls | rest], mins) do
+    mins(
+      rest,
+      Enum.reduce(pulls, mins, fn {num, color}, mins ->
+        %{mins | color => max(mins[color], num)}
+      end)
+    )
+  end
+
+  defp valid?({_, rounds}), do: valid?(rounds)
+  defp valid?([]), do: true
+
+  defp valid?([pulls | rest]) do
+    bag = %{"red" => 12, "green" => 13, "blue" => 14}
+
+    Enum.all?(pulls, fn {num, color} ->
+      num <= bag[color]
+    end) && valid?(rest)
+  end
+
+  defp parse_line(str) do
+    ["Game " <> n, rest] = String.split(str, ": ")
+
+    game =
+      rest
+      |> String.split("; ")
+      |> Enum.map(fn round ->
+        round
+        |> String.split(", ")
+        |> Enum.map(fn pull ->
+          [num, color] = String.split(pull, " ")
+          {String.to_integer(num), color}
+        end)
+      end)
+
+    {String.to_integer(n), game}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
