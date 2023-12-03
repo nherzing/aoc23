@@ -1,0 +1,85 @@
+# Day 3
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    nums = parse(input, ~r/\d+/)
+    syms = parse(input, ~r/[^\d\.]/)
+
+    nums
+    |> Enum.filter(&part_number?(&1, syms))
+    |> Enum.map(&(&1 |> elem(1) |> String.to_integer()))
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    nums = parse(input, ~r/\d+/)
+    stars = parse(input, ~r/\*/)
+
+    stars
+    |> Enum.map(&gear_ratio(&1, nums))
+    |> Enum.sum()
+  end
+
+  defp gear_ratio({coords, _}, nums) do
+    nums
+    |> Enum.filter(&part_number?(&1, %{coords => "*"}))
+    |> case do
+      [{_, n1}, {_, n2}] -> String.to_integer(n1) * String.to_integer(n2)
+      _ -> 0
+    end
+  end
+
+  defp part_number?({{nx, ny}, num}, syms) do
+    0..(String.length(num) - 1)
+    |> Enum.flat_map(&neighbors({nx + &1, ny}))
+    |> Enum.any?(&Map.has_key?(syms, &1))
+  end
+
+  defp neighbors({nx, ny}) do
+    [
+      {nx - 1, ny - 1},
+      {nx - 1, ny},
+      {nx - 1, ny + 1},
+      {nx, ny - 1},
+      {nx, ny + 1},
+      {nx + 1, ny - 1},
+      {nx + 1, ny},
+      {nx + 1, ny + 1}
+    ]
+  end
+
+  defp parse(input, pattern) do
+    input
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {line, row}, acc ->
+      get_row(line, pattern)
+      |> Enum.reduce(acc, fn {col, num}, acc ->
+        Map.put(acc, {col, row}, num)
+      end)
+    end)
+  end
+
+  defp get_row(str, pattern) do
+    pattern
+    |> Regex.scan(str, return: :index)
+    |> Enum.map(fn [{start, len}] -> {start, String.slice(str, start, len)} end)
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
