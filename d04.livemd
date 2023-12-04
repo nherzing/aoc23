@@ -1,0 +1,74 @@
+# Day 4
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(&parse/1)
+    |> Enum.map(&score/1)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    scored_cards =
+      input
+      |> String.split("\n")
+      |> Enum.map(&parse/1)
+      |> Enum.map(fn [winning, yours] ->
+        MapSet.intersection(winning, yours) |> MapSet.size()
+      end)
+
+    process(scored_cards, Enum.map(scored_cards, fn _ -> nil end), 0)
+  end
+
+  defp process([], [], num_cards), do: num_cards
+
+  defp process([0 | rest_scores], [copies | rest_copies], num_cards) do
+    process(rest_scores, rest_copies, num_cards + copies)
+  end
+
+  defp process([score | rest_scores], [copies | rest_copies], num_cards) do
+    rest_copies =
+      Enum.reduce(0..(score - 1), rest_copies, fn offset, rest_copies ->
+        List.update_at(rest_copies, offset, &(&1 + copies))
+      end)
+
+    process(rest_scores, rest_copies, num_cards + copies)
+  end
+
+  defp score([winning, yours]) do
+    MapSet.intersection(winning, yours)
+    |> MapSet.size()
+    |> case do
+      0 -> 0
+      n -> 2 ** (n - 1)
+    end
+  end
+
+  defp parse(str) do
+    [_, str] = String.split(str, ": ")
+
+    str
+    |> String.split("|")
+    |> Enum.map(&String.split(&1, " ", trim: true))
+    |> Enum.map(fn nums -> Enum.map(nums, &String.to_integer/1) end)
+    |> Enum.map(&MapSet.new/1)
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
