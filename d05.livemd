@@ -1,0 +1,102 @@
+# Day 5
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    {seeds, maps} = parse(input)
+
+    seeds
+    |> Enum.map(&to_loc(&1, maps))
+    |> Enum.min()
+  end
+
+  def part2(input) do
+    {seeds, maps} = parse(input)
+
+    seeds
+    |> Enum.chunk_every(2)
+    |> Enum.map(fn [start, range] -> {start, start + range - 1} end)
+    |> Enum.map(&r_to_locs(&1, maps))
+    |> Enum.map(fn rs -> rs |> Enum.map(&elem(&1, 0)) |> Enum.min() end)
+    |> Enum.min()
+  end
+
+  defp r_to_locs(range, []), do: [range]
+
+  defp r_to_locs({s_start, s_end}, _) when s_end < s_start, do: []
+
+  defp r_to_locs({s_start, s_end}, [map | maps]) do
+    map
+    |> Enum.find(fn {_, m_start, m_end} ->
+      (s_start >= m_start && s_start <= m_end) ||
+        (s_end >= m_start && s_end <= m_end)
+    end)
+    |> case do
+      nil ->
+        [{s_start, s_end}]
+
+      {d_start, m_start, m_end} ->
+        r_start = max(s_start, m_start)
+        r_end = min(s_end, m_end)
+
+        d_start = d_start + (r_start - m_start)
+
+        mapped_range = [{d_start, d_start + (r_end - r_start)}]
+        mapped_left = r_to_locs({s_start, r_start - 1}, [map])
+        mapped_right = r_to_locs({r_end + 1, s_end}, [map])
+        Enum.concat([mapped_left, mapped_range, mapped_right])
+    end
+    |> Enum.flat_map(&r_to_locs(&1, maps))
+  end
+
+  defp to_loc(seed, []), do: seed
+
+  defp to_loc(seed, [map | maps]) do
+    map
+    |> Enum.find(fn {_, s_start, s_end} ->
+      seed >= s_start && seed <= s_end
+    end)
+    |> case do
+      nil -> seed
+      {d_start, s_start, _} -> d_start + (seed - s_start)
+    end
+    |> then(&to_loc(&1, maps))
+  end
+
+  defp parse(input) do
+    ["seeds: " <> seeds | rest] = String.split(input, "\n\n")
+    seeds = seeds |> String.split(" ") |> Enum.map(&String.to_integer/1)
+
+    maps =
+      rest
+      |> Enum.map(fn map ->
+        map
+        |> String.split("\n")
+        |> Enum.drop(1)
+        |> Enum.map(fn line ->
+          line
+          |> String.split(" ")
+          |> Enum.map(&String.to_integer/1)
+          |> then(fn [a, b, c] -> {a, b, b + c - 1} end)
+        end)
+      end)
+
+    {seeds, maps}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
