@@ -1,0 +1,53 @@
+# Day 6
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    parse(input)
+    |> Enum.map(&winner_count/1)
+    |> Enum.product()
+  end
+
+  def part2(_input) do
+    # manually update input and use part1
+  end
+
+  defp winner_count({time, record}) do
+    lowest = Enum.find(0..time, &(dist(&1, time) > record))
+    highest = Enum.find(time..0, &(dist(&1, time) > record))
+
+    highest - lowest + 1
+  end
+
+  def dist(hold, total) do
+    hold * (total - hold)
+  end
+
+  defp parse(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      line
+      |> String.split(":")
+      |> Enum.at(1)
+      |> String.split(" ", trim: true)
+      |> Enum.map(&String.to_integer/1)
+    end)
+    |> Enum.zip()
+  end
+end
+
+Solution.part1(Kino.Input.read(input))
+```
