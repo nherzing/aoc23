@@ -1,0 +1,102 @@
+# Day 8
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    {path, map} = parse(input)
+
+    dests =
+      map
+      |> Map.keys()
+      |> Enum.reduce(%{}, fn start, acc ->
+        Map.put(acc, start, walk(start, path, map, ["ZZZ"], 0, []))
+      end)
+
+    steps(["AAA"], 0, dests, ["ZZZ"])
+  end
+
+  def part2(input) do
+    {path, map} = parse(input)
+
+    starting = map |> Map.keys() |> Enum.filter(&String.ends_with?(&1, "A"))
+
+    ending = map |> Map.keys() |> Enum.filter(&String.ends_with?(&1, "Z"))
+
+    dests =
+      map
+      |> Map.keys()
+      |> Enum.reduce(%{}, fn start, acc ->
+        Map.put(acc, start, walk(start, path, map, ending, 0, []))
+      end)
+
+    starting
+    |> Enum.map(&steps([&1], 0, dests, ending))
+    |> Enum.reduce(&lcm/2)
+  end
+
+  defp gcd(a, b) when a == 0 and b == 0, do: 0
+  defp gcd(a, b) when a == b, do: a
+  defp gcd(a, b) when a > b, do: gcd(a - b, b)
+  defp gcd(a, b), do: gcd(a, b - a)
+
+  defp lcm(a, b), do: div(a * b, gcd(a, b))
+
+  defp steps(starts, steps, dests, ending) do
+    if Enum.all?(starts, &Enum.member?(ending, &1)) do
+      steps
+    else
+      new_starts = Enum.map(starts, &dests[&1])
+
+      new_starts
+      |> Enum.map(&elem(&1, 1))
+      |> Enum.map(&MapSet.new/1)
+      |> Enum.reduce(&MapSet.intersection/2)
+      |> MapSet.to_list()
+      |> case do
+        [new_steps] ->
+          steps(Enum.map(new_starts, &elem(&1, 0)), steps + new_steps, dests, ending)
+
+        rest ->
+          steps + Enum.min(rest)
+      end
+    end
+  end
+
+  defp walk(start, [], _map, _ends, steps, acc), do: {start, [steps | acc]}
+
+  defp walk(start, [dir | rest], map, ends, steps, acc) do
+    if Enum.member?(ends, start) do
+      walk(map[start][dir], rest, map, ends, steps + 1, [steps | acc])
+    else
+      walk(map[start][dir], rest, map, ends, steps + 1, acc)
+    end
+  end
+
+  defp parse(input) do
+    [path | edges] = String.split(input, "\n", trim: true)
+
+    {path |> String.to_charlist(),
+     edges
+     |> Enum.map(fn <<src::binary-size(3), " = (", l::binary-size(3), ", ", r::binary-size(3),
+                      ")">> ->
+       {src, %{?L => l, ?R => r}}
+     end)
+     |> Map.new()}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
