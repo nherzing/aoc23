@@ -1,0 +1,81 @@
+# Day 7
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  @card_order ~c(AKQJT98765432) |> Enum.reverse()
+  @card_order2 ~c(AKQT98765432J) |> Enum.reverse()
+
+  def part1(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(&parse(&1, @card_order))
+    |> rank()
+  end
+
+  def part2(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(&parse(&1, @card_order2))
+    |> Enum.map(&replace_jokers/1)
+    |> rank()
+  end
+
+  defp rank(hands) do
+    hands
+    |> Enum.sort_by(fn {hand, _bid} -> hand end)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{_hand, bid}, rank} -> bid * rank end)
+    |> Enum.sum()
+  end
+
+  defp replace_jokers({[hand_type, hand_indices], bid}) do
+    freqs = Enum.frequencies(hand_indices)
+
+    hand_type =
+      hand_type
+      |> List.delete(freqs[0])
+      |> case do
+        [] -> [5]
+        l -> List.update_at(l, 0, &(&1 + Map.get(freqs, 0, 0)))
+      end
+
+    {[hand_type, hand_indices], bid}
+  end
+
+  def parse(line, order) do
+    [hand, bid] = String.split(line, " ")
+
+    hand_indices = hand_indices(hand, order)
+
+    {[hand_type(hand_indices), hand_indices], String.to_integer(bid)}
+  end
+
+  defp hand_indices(hand, order) do
+    hand
+    |> String.to_charlist()
+    |> Enum.map(fn c -> Enum.find_index(order, &(&1 == c)) end)
+  end
+
+  defp hand_type(hand_indices) do
+    hand_indices
+    |> Enum.frequencies()
+    |> Map.values()
+    |> Enum.sort(:desc)
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
