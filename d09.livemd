@@ -1,0 +1,48 @@
+# Day 9
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line -> line |> String.split(" ") |> Enum.map(&String.to_integer/1) end)
+    |> Enum.map(&extrapolate/1)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line -> line |> String.split(" ") |> Enum.map(&String.to_integer/1) end)
+    |> Enum.map(&Enum.reverse/1)
+    |> Enum.map(&extrapolate/1)
+    |> Enum.sum()
+  end
+
+  defp extrapolate(nums) do
+    if Enum.all?(nums, &(&1 == 0)) do
+      0
+    else
+      Enum.zip(nums, Enum.drop(nums, 1))
+      |> Enum.map(fn {a, b} -> b - a end)
+      |> extrapolate()
+      |> then(&(List.last(nums) + &1))
+    end
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
