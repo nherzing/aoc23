@@ -1,0 +1,197 @@
+# Day 10
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  @starting [
+    {?|, {0, -1}},
+    {?-, {1, 0}},
+    {?L, {0, 1}},
+    {?J, {0, 1}},
+    {?7, {1, 0}},
+    {?F, {-1, 0}}
+  ]
+  @left {-1, 0}
+  @right {1, 0}
+  @down {0, 1}
+  @up {0, -1}
+
+  @hleft {-0.5, 0.0}
+  @hright {0.5, 0.0}
+  @hdown {0.0, 0.5}
+  @hup {0.0, -0.5}
+
+  def part1(input) do
+    map = input |> parse()
+    start = start(map)
+
+    get_path(start, map)
+    |> elem(1)
+    |> MapSet.size()
+    |> div(2)
+  end
+
+  def part2(input) do
+    map = input |> parse()
+    start = start(map)
+
+    {pipe, main_loop} = get_path(start, map)
+    map = Map.put(map, start, pipe)
+
+    all_coords =
+      map
+      |> Map.keys()
+      |> MapSet.new()
+
+    all_coords
+    |> MapSet.difference(main_loop)
+    |> Enum.reduce(MapSet.new(), fn tile, free ->
+      case free?(tile, free, main_loop, map, MapSet.new()) do
+        {false, _visited} -> free
+        {true, visited} -> free |> MapSet.union(visited) |> MapSet.put(tile)
+      end
+    end)
+    |> MapSet.intersection(all_coords)
+    |> then(&(all_coords |> MapSet.difference(main_loop) |> MapSet.difference(&1)))
+    |> MapSet.size()
+  end
+
+  defp free?({x, y} = pos, free, main_loop, map, visited) do
+    [@hup, @hright, @hdown, @hleft]
+    |> Enum.reduce_while({false, visited}, fn {dx, dy}, {_, visited} ->
+      {nx, ny} = new_pos = {x + dx, y + dy}
+
+      check_clear =
+        cond do
+          trunc(nx) == nx && trunc(ny) == ny ->
+            []
+
+          trunc(nx) != nx && trunc(ny) == ny ->
+            [{nx - 0.5, ny}, {nx + 0.5, ny}]
+
+          trunc(nx) == nx && trunc(ny) != ny ->
+            [{nx, ny - 0.5}, {nx, ny + 0.5}]
+
+          true ->
+            []
+        end
+
+      cond do
+        Enum.any?(check_clear, &(!Map.has_key?(map, &1))) ->
+          {:halt, {true, MapSet.put(visited, new_pos)}}
+
+        MapSet.member?(visited, new_pos) ->
+          {:cont, {false, visited}}
+
+        MapSet.member?(main_loop, new_pos) ->
+          {:cont, {false, visited}}
+
+        MapSet.member?(free, new_pos) ->
+          {:halt, {true, MapSet.put(visited, new_pos)}}
+
+        true ->
+          can_enter =
+            check_clear
+            |> Enum.filter(&MapSet.member?(main_loop, &1))
+            |> case do
+              [] ->
+                true
+
+              [_a] ->
+                true
+
+              [a, b] ->
+                !connected?(map, a, b)
+            end
+
+          if can_enter do
+            case free?(new_pos, free, main_loop, map, MapSet.put(visited, pos)) do
+              {false, visited} -> {:cont, {false, visited}}
+              {true, visited} -> {:halt, {true, visited}}
+            end
+          else
+            {:cont, {false, MapSet.put(visited, pos)}}
+          end
+      end
+    end)
+  end
+
+  defp connected?(map, {ax, ay} = a, {bx, ay} = b) when ax > bx, do: connected?(map, b, a)
+
+  defp connected?(map, {_ax, ay} = a, {_bx, ay} = b) do
+    map[a] in [?-, ?L, ?F] && map[b] in [?-, ?J, ?7]
+  end
+
+  defp connected?(map, {ax, ay} = a, {ax, by} = b) when ay > by, do: connected?(map, b, a)
+
+  defp connected?(map, {ax, _ay} = a, {ax, _by} = b) do
+    map[a] in [?|, ?7, ?F] && map[b] in [?|, ?L, ?J]
+  end
+
+  defp get_path(start, map) do
+    @starting
+    |> Enum.map(fn {pipe, dir} ->
+      {pipe, traverse(start, start, dir, Map.put(map, start, pipe), MapSet.new())}
+    end)
+    |> Enum.find(fn {_pipe, path} -> !is_nil(path) end)
+  end
+
+  defp traverse({x, y} = pos, goal, dir, map, visited) do
+    new_dir = {dx, dy} = dir(map[pos], dir)
+    new_pos = {x + dx, y + dy}
+
+    cond do
+      new_pos == goal && connected?(map, pos, new_pos) ->
+        MapSet.put(visited, pos)
+
+      MapSet.member?(visited, new_pos) ->
+        nil
+
+      dir(map[new_pos], new_dir) ->
+        traverse(new_pos, goal, new_dir, map, MapSet.put(visited, pos))
+
+      true ->
+        nil
+    end
+  end
+
+  defp dir(?|, @up), do: @up
+  defp dir(?|, @down), do: @down
+  defp dir(?-, @left), do: @left
+  defp dir(?-, @right), do: @right
+  defp dir(?L, @down), do: @right
+  defp dir(?L, @left), do: @up
+  defp dir(?J, @down), do: @left
+  defp dir(?J, @right), do: @up
+  defp dir(?7, @right), do: @down
+  defp dir(?7, @up), do: @left
+  defp dir(?F, @left), do: @down
+  defp dir(?F, @up), do: @right
+  defp dir(_, _), do: nil
+
+  defp start(map) do
+    map |> Enum.find(fn {_xy, c} -> c == ?S end) |> elem(0)
+  end
+
+  defp parse(input) do
+    for {line, y} <- input |> String.split("\n") |> Enum.with_index(),
+        {c, x} <- line |> String.to_charlist() |> Enum.with_index(),
+        into: %{},
+        do: {{x + 0.0, y + 0.0}, c}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
