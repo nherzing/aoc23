@@ -1,0 +1,122 @@
+# Day 11
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> parse()
+    |> expand(2)
+    |> then(fn {_, galaxies} ->
+      dists(galaxies)
+    end)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> parse()
+    |> expand(1_000_000)
+    |> then(fn {_, galaxies} ->
+      dists(galaxies)
+    end)
+    |> Enum.sum()
+  end
+
+  defp dists([]), do: []
+
+  defp dists([{xa, ya} | rest]) do
+    Enum.map(rest, fn {xb, yb} -> abs(xa - xb) + abs(ya - yb) end) ++ dists(rest)
+  end
+
+  defp expand(universe, age) do
+    universe
+    |> expand_height(age, 0)
+    |> expand_width(age, 0)
+  end
+
+  defp expand_height({{x, y}, galaxies}, _age, row) when row == y do
+    {{x, y}, galaxies}
+  end
+
+  defp expand_height({{x, y}, galaxies}, age, row) do
+    if Enum.any?(galaxies, fn {_x, y} -> y == row end) do
+      expand_height({{x, y}, galaxies}, age, row + 1)
+    else
+      {{x, y + age - 1},
+       galaxies
+       |> Enum.map(fn
+         {x, y} when y > row -> {x, y + age - 1}
+         {x, y} -> {x, y}
+       end)}
+      |> expand_height(age, row + age)
+    end
+  end
+
+  defp expand_width({{x, y}, galaxies}, _age, col) when col == x do
+    {{x, y}, galaxies}
+  end
+
+  defp expand_width({{x, y}, galaxies}, age, col) do
+    if Enum.any?(galaxies, fn {x, _y} -> x == col end) do
+      expand_width({{x, y}, galaxies}, age, col + 1)
+    else
+      {{x + age - 1, y},
+       galaxies
+       |> Enum.map(fn
+         {x, y} when x > col -> {x + age - 1, y}
+         {x, y} -> {x, y}
+       end)}
+      |> expand_width(age, col + age)
+    end
+  end
+
+  defp parse(input) do
+    lines = String.split(input, "\n")
+    y = Enum.count(lines)
+    x = String.length(hd(lines))
+
+    galaxies =
+      for {line, y} <- Enum.with_index(lines),
+          {c, x} <- line |> String.to_charlist() |> Enum.with_index(),
+          c == ?#,
+          into: [],
+          do: {x, y}
+
+    {{x, y}, galaxies}
+  end
+
+  defp print({{x, y}, galaxies} = universe) do
+    galaxies = MapSet.new(galaxies)
+    IO.puts("Universe")
+
+    Enum.each(0..(y - 1), fn row ->
+      Enum.each(0..(x - 1), fn col ->
+        if MapSet.member?(galaxies, {col, row}) do
+          IO.write("#")
+        else
+          IO.write(".")
+        end
+      end)
+
+      IO.write("\n")
+    end)
+
+    universe
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
