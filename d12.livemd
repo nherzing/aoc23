@@ -1,0 +1,108 @@
+# Day 12
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> parse()
+    |> Enum.map(&solutions/1)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> parse()
+    |> Enum.map(&unfold/1)
+    |> Enum.map(&solutions/1)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sum()
+  end
+
+  defp unfold({record, groups}) do
+    {"#{record}?#{record}?#{record}?#{record}?#{record}" |> String.to_charlist(),
+     Enum.concat([groups, groups, groups, groups, groups])}
+  end
+
+  defp solutions({record, groups}) do
+    do_cs(record, groups, %{})
+  end
+
+  defp memo(map, key, fun) do
+    if Map.has_key?(map, key) do
+      {map[key], map}
+    else
+      {v, map} = fun.(map)
+      {v, Map.put(map, key, v)}
+    end
+  end
+
+  defp do_cs([], [], acc) do
+    memo(acc, {[], []}, fn acc -> {1, acc} end)
+  end
+
+  defp do_cs([?. | rest], groups, acc) do
+    memo(acc, {[?. | rest], groups}, fn acc -> do_cs(rest, groups, acc) end)
+  end
+
+  defp do_cs([?# | _] = record, [group | groups], acc) do
+    memo(acc, {record, [group | groups]}, fn acc ->
+      case take_group(record, group) do
+        {true, rest} -> do_cs(rest, groups, acc)
+        nil -> {0, acc}
+      end
+    end)
+  end
+
+  defp do_cs([?? | rest], groups, acc) do
+    memo(acc, {[?? | rest], groups}, fn acc ->
+      {n, acc} = do_cs([?. | rest], groups, acc)
+      {m, acc} = do_cs([?# | rest], groups, acc)
+      {n + m, acc}
+    end)
+  end
+
+  defp do_cs(record, groups, acc) do
+    memo(acc, {record, groups}, fn acc -> {0, acc} end)
+  end
+
+  defp take_group(record, group) do
+    case Enum.split(record, group) do
+      {in_group, []} ->
+        if length(in_group) == group && Enum.all?(in_group, &(&1 in [??, ?#])) do
+          {true, []}
+        end
+
+      {in_group, [next | rest]} ->
+        if Enum.all?(in_group, &(&1 in [??, ?#])) && next in [??, ?.] do
+          {true, rest}
+        end
+    end
+  end
+
+  defp parse(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      [record, checksum] = String.split(line, " ")
+      groups = checksum |> String.split(",") |> Enum.map(&String.to_integer/1)
+      {String.to_charlist(record), groups}
+    end)
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
