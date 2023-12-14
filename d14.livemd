@@ -1,0 +1,122 @@
+# Day 14
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> parse()
+    |> tilt()
+    |> score()
+  end
+
+  def part2(input) do
+    input
+    |> parse()
+    |> cycle(1_000_000_000)
+    |> score()
+  end
+
+  defp score({_w, h, dish}) do
+    dish
+    |> Enum.map(fn
+      {{_x, y}, ?O} -> h - y
+      _ -> 0
+    end)
+    |> Enum.sum()
+  end
+
+  defp cycle(dish, n), do: cycle(dish, 0, n, %{})
+  defp cycle(dish, n, n, _acc), do: dish
+
+  defp cycle(dish, i, n, acc) do
+    new_dish = cycle(dish)
+
+    if first_i = acc[new_dish] do
+      delta = i + 1 - first_i
+      left = n - (i + 1)
+      to_add = div(left, delta) * delta
+
+      if to_add == 0 do
+        cycle(new_dish, i + 1, n, Map.put(acc, new_dish, i + 1))
+      else
+        cycle(new_dish, i + to_add + 1, n, acc)
+      end
+    else
+      cycle(new_dish, i + 1, n, Map.put(acc, new_dish, i + 1))
+    end
+  end
+
+  defp cycle(dish) do
+    dish
+    |> tilt()
+    |> rotate()
+    |> tilt()
+    |> rotate()
+    |> tilt()
+    |> rotate()
+    |> tilt()
+    |> rotate()
+  end
+
+  defp rotate({w, h, dish}) do
+    {h, w,
+     dish
+     |> Enum.map(fn {{x, y}, v} -> {{h - 1 - y, x}, v} end)
+     |> Map.new()}
+  end
+
+  defp tilt({w, h, dish}) do
+    {w, h,
+     Enum.reduce(0..(w - 1), %{}, fn x, new_dish ->
+       Enum.reduce(0..(h - 1), {0, new_dish}, fn y, {to_move, new_dish} ->
+         case dish[{x, y}] do
+           nil -> {to_move + 1, new_dish}
+           ?# -> {0, Map.put(new_dish, {x, y}, ?#)}
+           ?O -> {to_move, Map.put(new_dish, {x, y - to_move}, ?O)}
+         end
+       end)
+       |> elem(1)
+     end)}
+  end
+
+  defp parse(input) do
+    lines = String.split(input, "\n")
+    y = length(lines)
+    x = lines |> hd() |> String.length()
+
+    {x, y,
+     for(
+       {line, y} <- lines |> Enum.with_index(),
+       {c, x} <- line |> String.to_charlist() |> Enum.with_index(),
+       c != ?.,
+       into: %{},
+       do: {{x, y}, c}
+     )}
+  end
+
+  defp print({w, h, dish}) do
+    for y <- 0..(h - 1) do
+      for x <- 0..(w - 1) do
+        IO.write("#{[dish[{x, y}] || ?.]}")
+      end
+
+      IO.write("\n")
+    end
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
