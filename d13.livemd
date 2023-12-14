@@ -1,0 +1,123 @@
+# Day 13
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> parse()
+    |> Enum.map(&find_any_mirror/1)
+    |> Enum.map(&score/1)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> parse()
+    |> Enum.map(&find_any_mirror_with_smudge/1)
+    |> Enum.map(&score/1)
+    |> Enum.sum()
+  end
+
+  defp score({:vert, s}), do: s
+  defp score({:horz, s}), do: s * 100
+
+  defp find_any_mirror_with_smudge(v) do
+    original = find_any_mirror(v)
+
+    v
+    |> smudges()
+    |> Enum.find_value(fn vs ->
+      find_any_mirror(vs, original)
+    end)
+  end
+
+  defp smudges({w, h, pattern}) do
+    for x <- 0..(w - 1), y <- 0..(h - 1) do
+      {w, h,
+       if MapSet.member?(pattern, {x, y}) do
+         MapSet.delete(pattern, {x, y})
+       else
+         MapSet.put(pattern, {x, y})
+       end}
+    end
+  end
+
+  defp find_any_mirror(v, ignore \\ nil) do
+    cond do
+      m = find_mirror(v, :horz, ignore) -> m
+      m = v |> invert() |> find_mirror(:vert, ignore) -> m
+      true -> nil
+    end
+  end
+
+  defp invert({w, h, pattern}) do
+    {h, w, pattern |> Enum.map(fn {x, y} -> {y, x} end) |> MapSet.new()}
+  end
+
+  defp find_mirror({w, h, pattern}, type, ignore) do
+    matches =
+      Enum.reduce(0..(h - 1), %{}, fn y, acc ->
+        Map.update(
+          acc,
+          Enum.map(0..(w - 1), fn x -> MapSet.member?(pattern, {x, y}) end),
+          [y],
+          &[y | &1]
+        )
+      end)
+
+    inv_matches =
+      matches
+      |> Enum.reduce(%{}, fn {col, idxs}, acc ->
+        idxs
+        |> Enum.reduce(acc, fn idx, acc -> Map.put(acc, idx, col) end)
+      end)
+
+    matches
+    |> Map.values()
+    |> Enum.find_value(fn idxs ->
+      for(a <- idxs, b <- idxs, b - a == 1, do: {a, b})
+      |> Enum.find_value(fn {a, b} ->
+        if Enum.zip(a..0, b..(h - 1))
+           |> Enum.all?(fn {a, b} -> inv_matches[a] == inv_matches[b] end) do
+          m = {type, a + 1}
+          if m != ignore, do: m
+        end
+      end)
+    end)
+  end
+
+  defp parse(input) do
+    input
+    |> String.split("\n\n")
+    |> Enum.map(fn pattern ->
+      lines = String.split(pattern, "\n")
+      y = length(lines)
+      x = lines |> hd() |> String.length()
+
+      {x, y,
+       for(
+         {line, y} <- lines |> Enum.with_index(),
+         {c, x} <- line |> String.to_charlist() |> Enum.with_index(),
+         c == ?#,
+         into: MapSet.new(),
+         do: {x, y}
+       )}
+    end)
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
