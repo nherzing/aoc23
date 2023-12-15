@@ -1,0 +1,97 @@
+# Day 15
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    input
+    |> String.split(",")
+    |> Enum.map(&hash/1)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    input
+    |> String.split(",")
+    |> init()
+    |> score()
+  end
+
+  defp score(boxes) do
+    boxes
+    |> Enum.flat_map(fn {idx, box} ->
+      box
+      |> Enum.with_index(1)
+      |> Enum.map(fn {{_l, v}, jdx} -> (idx + 1) * v * jdx end)
+    end)
+    |> Enum.sum()
+  end
+
+  defp init(steps) do
+    boxes = Enum.map(0..255, &{&1, []}) |> Map.new()
+
+    Enum.reduce(steps, boxes, &step/2)
+  end
+
+  defp step(step, boxes) do
+    if String.ends_with?(step, "-") do
+      label = String.replace(step, "-", "")
+      box = hash(label)
+
+      Map.update!(
+        boxes,
+        box,
+        fn lenses ->
+          Enum.reject(lenses, fn {l, _v} -> label == l end)
+        end
+      )
+    else
+      [label, focal_length] = String.split(step, "=")
+      focal_length = String.to_integer(focal_length)
+      box = hash(label)
+
+      if idx = Enum.find_index(boxes[box], fn {l, _v} -> label == l end) do
+        Map.update!(
+          boxes,
+          box,
+          fn lenses ->
+            List.replace_at(lenses, idx, {label, focal_length})
+          end
+        )
+      else
+        Map.update!(
+          boxes,
+          box,
+          fn lenses ->
+            lenses ++ [{label, focal_length}]
+          end
+        )
+      end
+    end
+  end
+
+  defp hash(str) do
+    str
+    |> String.to_charlist()
+    |> Enum.reduce(0, fn c, h ->
+      h = h + c
+      h = h * 17
+      rem(h, 256)
+    end)
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
