@@ -1,0 +1,127 @@
+# Day 16
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  @left {-1, 0}
+  @right {1, 0}
+  @up {0, -1}
+  @down {0, 1}
+
+  def part1(input) do
+    input
+    |> parse()
+    |> elem(2)
+    |> trace({{0, 0}, @right}, MapSet.new())
+    |> score()
+  end
+
+  def part2(input) do
+    input
+    |> parse()
+    |> then(fn {w, h, map} ->
+      starting_configs =
+        Enum.map(0..(w - 1), &{{&1, 0}, @down}) ++
+          Enum.map(0..(w - 1), &{{&1, h - 1}, @up}) ++
+          Enum.map(0..(h - 1), &{{0, &1}, @right}) ++
+          Enum.map(0..(h - 1), &{{w - 1, &1}, @left})
+
+      starting_configs
+      |> Enum.map(&(trace(map, &1, MapSet.new()) |> score()))
+      |> Enum.max()
+    end)
+  end
+
+  defp score(energized) do
+    energized
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.uniq()
+    |> length()
+  end
+
+  defp trace(map, {pos, dir}, energized) do
+    if MapSet.member?(energized, {pos, dir}) do
+      energized
+    else
+      energized =
+        if Map.has_key?(map, pos), do: MapSet.put(energized, {pos, dir}), else: energized
+
+      case map[pos] do
+        nil ->
+          energized
+
+        ?. ->
+          trace(map, {move(pos, dir), dir}, energized)
+
+        ?| ->
+          if dir in [@up, @down] do
+            trace(map, {move(pos, dir), dir}, energized)
+          else
+            energized = trace(map, {move(pos, @up), @up}, energized)
+            trace(map, {move(pos, @down), @down}, energized)
+          end
+
+        ?- ->
+          if dir in [@left, @right] do
+            trace(map, {move(pos, dir), dir}, energized)
+          else
+            energized = trace(map, {move(pos, @left), @left}, energized)
+            trace(map, {move(pos, @right), @right}, energized)
+          end
+
+        ?/ ->
+          new_dir =
+            case dir do
+              @left -> @down
+              @right -> @up
+              @up -> @right
+              @down -> @left
+            end
+
+          trace(map, {move(pos, new_dir), new_dir}, energized)
+
+        ?\\ ->
+          new_dir =
+            case dir do
+              @left -> @up
+              @right -> @down
+              @up -> @left
+              @down -> @right
+            end
+
+          trace(map, {move(pos, new_dir), new_dir}, energized)
+      end
+    end
+  end
+
+  defp move({x, y}, {dx, dy}), do: {x + dx, y + dy}
+
+  defp parse(input) do
+    lines = String.split(input, "\n")
+    h = length(lines)
+    w = lines |> hd() |> String.length()
+
+    {w, h,
+     for(
+       {line, y} <- Enum.with_index(lines),
+       {c, x} <- line |> String.to_charlist() |> Enum.with_index(),
+       into: %{},
+       do: {{x, y}, c}
+     )}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
