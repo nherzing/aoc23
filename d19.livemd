@@ -1,0 +1,164 @@
+# Day 19
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  def part1(input) do
+    {workflows, parts} = parse(input)
+
+    parts
+    |> Enum.filter(fn part -> doit(part, "in", workflows) == "A" end)
+    |> Enum.map(&score/1)
+    |> Enum.sum()
+  end
+
+  def part2(input) do
+    {workflows, _} = parse(input)
+
+    search(
+      %{"x" => [1, 4000], "m" => [1, 4000], "a" => [1, 4000], "s" => [1, 4000]},
+      "in",
+      workflows
+    )
+    |> Enum.map(&size/1)
+    |> Enum.sum()
+  end
+
+  defp size(limits) do
+    limits
+    |> Map.values()
+    |> Enum.map(fn [min, max] -> max - min + 1 end)
+    |> Enum.product()
+  end
+
+  defp search(_, "R", _), do: []
+  defp search(limits, "A", _), do: [limits]
+
+  defp search(limits, state, workflows) do
+    workflows[state]
+    |> Enum.reduce({limits, []}, fn {rule, next}, {limits, acc} ->
+      case rule do
+        {:lt, k, v} ->
+          [min, max] = limits[k]
+          # can't match
+          if max <= v do
+            {limits, acc}
+          else
+            {
+              Map.put(limits, k, [v, max]),
+              acc ++ search(Map.put(limits, k, [min, v - 1]), next, workflows)
+            }
+          end
+
+        {:gt, k, v} ->
+          [min, max] = limits[k]
+          # can't match
+          if min >= v do
+            {limits, acc}
+          else
+            {
+              Map.put(limits, k, [min, v]),
+              acc ++ search(Map.put(limits, k, [v + 1, max]), next, workflows)
+            }
+          end
+
+        :else ->
+          {limits, acc ++ search(limits, next, workflows)}
+      end
+    end)
+    |> elem(1)
+  end
+
+  defp score(part) do
+    part
+    |> Map.values()
+    |> Enum.sum()
+  end
+
+  defp doit(part, state, workflows) do
+    new_state =
+      Enum.find_value(workflows[state], fn {rule, next} ->
+        case rule do
+          {:lt, k, v} -> part[k] < v && next
+          {:gt, k, v} -> part[k] > v && next
+          :else -> next
+        end
+      end)
+
+    if new_state in ["A", "R"] do
+      new_state
+    else
+      doit(part, new_state, workflows)
+    end
+  end
+
+  defp parse(input) do
+    [workflows, parts] = String.split(input, "\n\n")
+
+    workflows =
+      workflows
+      |> String.split("\n")
+      |> Enum.map(&parse_workflow/1)
+      |> Map.new()
+
+    parts =
+      parts
+      |> String.split("\n")
+      |> Enum.map(&parse_part/1)
+
+    {workflows, parts}
+  end
+
+  # {x=787,m=2655,a=1222,s=2876}
+  defp parse_part(input) do
+    [_, x, m, a, s] = Regex.run(~r/\{x=(\d+),m=(\d+),a=(\d+),s=(\d+)\}/, input)
+
+    %{
+      "x" => String.to_integer(x),
+      "m" => String.to_integer(m),
+      "a" => String.to_integer(a),
+      "s" => String.to_integer(s)
+    }
+  end
+
+  # px{a<2006:qkq,m>2090:A,rfg}
+  defp parse_workflow(input) do
+    [_, name, parts] = Regex.run(~r/(\w*)\{(.*)}/, input)
+
+    {name,
+     parts
+     |> String.split(",")
+     |> Enum.map(fn part ->
+       case String.split(part, ":") do
+         [cmp, dest] ->
+           if String.contains?(cmp, "<") do
+             [l, r] = String.split(cmp, "<")
+             r = String.to_integer(r)
+             {{:lt, l, r}, dest}
+           else
+             [l, r] = String.split(cmp, ">")
+             r = String.to_integer(r)
+             {{:gt, l, r}, dest}
+           end
+
+         [dest] ->
+           {:else, dest}
+       end
+     end)}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
