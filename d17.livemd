@@ -1,0 +1,124 @@
+# Day 17
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  @left {-1, 0}
+  @right {1, 0}
+  @up {0, -1}
+  @down {0, 1}
+
+  def part1(input) do
+    doit(input, 0, 3)
+  end
+
+  def part2(input) do
+    doit(input, 4, 10)
+  end
+
+  defp doit(input, min, max) do
+    {w, h, map} = parse(input)
+
+    next_moves({{0, 0}, nil}, 0, map, min, max)
+    |> bfs(map, %{{{0, 0}, nil} => 0}, min, max)
+    |> Enum.filter(fn {{pos, _}, _v} -> pos == {w - 1, h - 1} end)
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.min()
+  end
+
+  defp bfs(to_visit, map, shortest, min, max) do
+    if MapSet.size(to_visit) == 0 do
+      shortest
+    else
+      {to_visit, shortest} =
+        to_visit
+        |> Enum.reduce({MapSet.new(), shortest}, fn {pos, {_dir, n} = move, cost},
+                                                    {to_visit, shortest} ->
+          key = {pos, move}
+          new_cost = cost + map[pos]
+
+          if n >= min do
+            case shortest(shortest, key, min) do
+              nil ->
+                {MapSet.union(to_visit, next_moves(key, new_cost, map, min, max)),
+                 Map.put(shortest, key, new_cost)}
+
+              old_cost ->
+                if old_cost <= new_cost do
+                  {to_visit, shortest}
+                else
+                  {MapSet.union(to_visit, next_moves(key, new_cost, map, min, max)),
+                   Map.put(shortest, key, new_cost)}
+                end
+            end
+          else
+            {MapSet.union(to_visit, next_moves(key, new_cost, map, min, max)), shortest}
+          end
+        end)
+
+      bfs(to_visit, map, shortest, min, max)
+    end
+  end
+
+  defp shortest(shortest, {pos, {dir, n}}, _min) do
+    Enum.find_value(1..n, fn i -> shortest[{pos, {dir, i}}] end)
+  end
+
+  defp next_moves({pos, move}, cost, map, min, max) do
+    move
+    |> moves(min, max)
+    |> Enum.map(fn {dir, _n} = move -> {move(pos, dir), move, cost} end)
+    |> Enum.filter(fn {new_pos, _move, _cost} -> Map.has_key?(map, new_pos) end)
+    |> MapSet.new()
+  end
+
+  defp moves(nil, _min, _max) do
+    [{@up, 1}, {@right, 1}, {@down, 1}, {@left, 1}]
+  end
+
+  defp moves({dir, max}, _min, max) do
+    turns(dir)
+  end
+
+  defp moves({dir, n}, min, _max) do
+    if n < min do
+      [{dir, n + 1}]
+    else
+      [{dir, n + 1} | turns(dir)]
+    end
+  end
+
+  defp turns({0, _}), do: [{@left, 1}, {@right, 1}]
+  defp turns({_, 0}), do: [{@up, 1}, {@down, 1}]
+
+  defp move({x, y}, {dx, dy}), do: {x + dx, y + dy}
+
+  defp parse(input) do
+    lines = String.split(input, "\n")
+    h = length(lines)
+    w = lines |> hd() |> String.length()
+
+    {w, h,
+     for(
+       {line, y} <- Enum.with_index(lines),
+       {c, x} <- line |> String.to_charlist() |> Enum.with_index(),
+       into: %{},
+       do: {{x, y}, c - ?0}
+     )}
+  end
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```

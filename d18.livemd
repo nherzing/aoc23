@@ -1,0 +1,162 @@
+# Day 18
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+defmodule Solution do
+  @left {-1, 0}
+  @right {1, 0}
+  @up {0, -1}
+  @down {0, 1}
+
+  def part1(input) do
+    input
+    |> parse()
+    |> dig({0, 0}, MapSet.new([{0, 0}]))
+    |> fill()
+    |> MapSet.size()
+  end
+
+  def part2(input) do
+    input
+    |> parse2()
+    |> build_segments()
+    |> fill2()
+  end
+
+  defp fill2(%{vert: vert, horz: horz}) do
+    {_, count, seen_horz} =
+      Enum.reduce(horz, {nil, 0, MapSet.new()}, fn {{_x_tl, y_t}, {_x_tr, y_t}},
+                                                   {last_y, acc, seen_horz} ->
+        if last_y == y_t do
+          {y_t, acc, seen_horz}
+        else
+          case Enum.find(horz, fn {{_, yb}, _} -> yb > y_t end) do
+            {{_, y_b}, {_, y_b}} ->
+              height = y_b - y_t
+
+              verts =
+                Enum.filter(vert, fn {{_, yvt}, {_, yvb}} ->
+                  yvt <= y_t && yvb >= y_b
+                end)
+
+              {acc, seen_horz} =
+                Enum.chunk_every(verts, 2)
+                |> Enum.reduce({acc, seen_horz}, fn [{{xa, _}, _}, {{xb, _}, _}],
+                                                    {acc, seen_horz} ->
+                  {acc + (xb - xa + 1) * height, MapSet.put(seen_horz, {{xa, y_t}, {xb, y_t}})}
+                end)
+
+              {y_t, acc, seen_horz}
+
+            nil ->
+              {y_t, acc, seen_horz}
+          end
+        end
+      end)
+
+    left_over =
+      horz
+      |> Enum.reject(fn {{x1a, y1}, {x1b, y1}} ->
+        Enum.any?(seen_horz, fn {{x2a, y2}, {x2b, y2}} ->
+          y1 == y2 && x1a >= x2a && x1b <= x2b
+        end)
+      end)
+      |> Enum.map(fn {{xa, _}, {xb, _}} -> xb - xa end)
+      |> Enum.sum()
+
+    # but why +1??????
+    count + left_over + 1
+  end
+
+  defp build_segments(segs) do
+    Enum.reduce(segs, {{0, 0}, []}, fn {{dx, dy}, count}, {{x, y}, segments} ->
+      {nx, ny} = {x + dx * count, y + dy * count}
+
+      new_seg =
+        if {dx, dy} in [@up, @down] do
+          if ny < y, do: {:vert, {{nx, ny}, {x, y}}}, else: {:vert, {{x, y}, {nx, ny}}}
+        else
+          if nx < x, do: {:horz, {{nx, ny}, {x, y}}}, else: {:horz, {{x, y}, {nx, ny}}}
+        end
+
+      {{nx, ny}, [new_seg | segments]}
+    end)
+    |> elem(1)
+    |> Enum.sort_by(fn
+      {:vert, {{x, y}, _}} -> [x, y]
+      {:horz, {{x, y}, _}} -> [y, x]
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+  end
+
+  defp fill(dug) do
+    fill(dug, {1, 1})
+  end
+
+  defp fill(dug, pos) do
+    [@up, @right, @down, @left]
+    |> Enum.map(&move(pos, &1))
+    |> Enum.reduce(dug, fn pos, dug ->
+      if MapSet.member?(dug, pos) do
+        dug
+      else
+        fill(MapSet.put(dug, pos), pos)
+      end
+    end)
+  end
+
+  defp dig([], _pos, dug), do: dug
+
+  defp dig([{dir, count} | rest], pos, dug) do
+    {new_pos, dug} =
+      Enum.reduce(1..count, {pos, dug}, fn _, {pos, dug} ->
+        new_pos = move(pos, dir)
+        {new_pos, MapSet.put(dug, new_pos)}
+      end)
+
+    dig(rest, new_pos, dug)
+  end
+
+  defp move({x, y}, {dx, dy}), do: {x + dx, y + dy}
+
+  defp parse(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      [dir, count, _hex] = String.split(line, " ")
+      {dir |> String.to_charlist() |> hd() |> dir(), String.to_integer(count)}
+    end)
+  end
+
+  defp parse2(input) do
+    dirs = %{"0" => ?R, "1" => ?D, "2" => ?L, "3" => ?U}
+
+    input
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      [_, _, hex] = String.split(line, " ")
+      {count, dir} = String.replace(hex, ~r/[\(\)\#]/, "") |> String.split_at(5)
+      {dirs[dir] |> dir(), Integer.parse(count, 16) |> elem(0)}
+    end)
+  end
+
+  defp dir(?U), do: @up
+  defp dir(?D), do: @down
+  defp dir(?L), do: @left
+  defp dir(?R), do: @right
+end
+
+# Solution.part1(Kino.Input.read(input))
+Solution.part2(Kino.Input.read(input))
+```
